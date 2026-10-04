@@ -14,8 +14,8 @@ MODEL_URL = ("https://huggingface.co/willwade/mms-tts-multilingual-models-onnx"
 MODEL_DIR = Path("model")
 OUT_DIR = Path("outputs")
 OUT_DIR.mkdir(exist_ok=True)
-FONT_URL = ("https://github.com/google/fonts/raw/main/ofl/notosansmyanmar/"
-            "NotoSansMyanmar%5Bwght%5D.ttf")
+FONT_URL = ("https://raw.githubusercontent.com/google/fonts/main/"
+            "ofl/notosansmyanmar/NotoSansMyanmar%5Bwdth%2Cwght%5D.ttf")
 FONT_DIR = Path("fonts")
 ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -42,7 +42,12 @@ def ensure_font():
     FONT_DIR.mkdir(exist_ok=True)
     dest = FONT_DIR / "NotoSansMyanmar.ttf"
     if not dest.exists():
-        urllib.request.urlretrieve(FONT_URL, dest)
+        try:
+            urllib.request.urlretrieve(FONT_URL, dest)
+        except Exception:
+            raise RuntimeError(
+                "Font download မအောင်မြင်ပါ — 'burn subtitles' အမှန်ခြစ်ဖြုတ်ပြီး "
+                "ပြန်စမ်းကြည့်ပါ / Font download failed — uncheck 'burn subtitles'.")
     return dest
 
 
@@ -93,86 +98,3 @@ SRT_EXAMPLE = """1
 ရွှေဖရုံသီး စားဖိုမှူးက ခရမ်းချဉ်သီးလေးကို အမှိုက်ပုံးထဲ လွှင့်ပစ်လိုက်တယ်။
 
 2
-00:00:05,000 --> 00:00:11,000
-အမှိုက်ပုံးထဲမှာ ငိုနေတုန်း ရွှေဝါရောင် အလင်းတစ်စက်ကို သတိထားမိသွားတယ်။
-"""
-
-st.set_page_config(page_title="Myanmar Story Dubbing", page_icon="🇲🇲")
-st.title("🇲🇲 Myanmar Story Dubbing")
-st.write("Video + မြန်မာ SRT စာတန်း → အချိန်မှန်တဲ့ မြန်မာဇာတ်ပြောသံပါတဲ့ video")
-st.warning("⚠️ English စာလုံးတွေကို မြန်မာလို အသံထွက်ရေးပေးပါ "
-           "(ဥပမာ `Thiha` → `သီဟ`) — အသံစက်က မြန်မာစာပဲ ဖတ်တတ်ပါတယ်။")
-
-video = st.file_uploader("Video (.mp4) တင်ပါ", type=["mp4", "mov"])
-srt_text = st.text_area("SRT စာသား", value="", height=250,
-                        placeholder=SRT_EXAMPLE,
-                        help="အပေါ်က နမူနာအတိုင်း အချိန်နဲ့တကွ ရေးပါ")
-burn = st.checkbox("စာတန်းပါ video ထဲမှာ ကပ်မယ် (burn subtitles)")
-
-if st.button("🎙️ Dub လုပ်မယ်", type="primary"):
-    if not video:
-        st.error("Video file တင်ပေးပါ။")
-        st.stop()
-    if not srt_text.strip():
-        st.error("SRT စာသား ထည့်ပေးပါ။")
-        st.stop()
-    entries = parse_srt(srt_text)
-    if not entries:
-        st.error("SRT format မှားနေတယ် — နမူနာအတိုင်း စစ်ပေးပါ။")
-        st.stop()
-    if re.search(r"[a-zA-Z]", srt_text):
-        st.warning("English စာလုံးတွေပါဝင်နေတယ် — မြန်မာလို အသံထွက်ပြောင်းရေးဖို့ "
-                   "အကြံပြုပါတယ်။")
-
-    vp = OUT_DIR / "input.mp4"
-    vp.write_bytes(video.getvalue())
-
-    tts = get_tts()
-    workdir = OUT_DIR / "segs"
-    workdir.mkdir(exist_ok=True)
-    inputs, filters = [], []
-    bar = st.progress(0, "အသံထုတ်နေတယ်...")
-    for i, (start, end, text) in enumerate(entries):
-        seg = workdir / f"seg{i:02d}.wav"
-        synth_wav(tts, text, seg)
-        dur, slot = wav_duration(seg), end - start
-        chain = f"[{i+1}:a]"
-        if dur > slot:
-            chain += f"atempo={min(dur/slot, 1.6):.3f},"
-        ms = int(start * 1000)
-        chain += f"adelay={ms}|{ms}[s{i}]"
-        filters.append(chain)
-        inputs += ["-i", str(seg)]
-        bar.progress((i + 1) / len(entries), f"အပိုင်း {i+1}/{len(entries)}...")
-
-    filters.append("".join(f"[s{i}]" for i in range(len(entries))) +
-                   f"amix=inputs={len(entries)}:duration=longest:"
-                   f"dropout_transition=0:normalize=0[mix]")
-    srt_tmp = workdir / "subs.srt"
-    srt_tmp.write_text(srt_text, encoding="utf-8")
-    if burn:
-        font = ensure_font()
-        vf = ["-vf",
-              f"subtitles={srt_tmp}:fontsdir={FONT_DIR}:"
-              "force_style='FontName=Noto Sans Myanmar,FontSize=20,"
-              "PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,"
-              "BorderStyle=1,Outline=2,Alignment=2,MarginV=35'"]
-        vcodec = "libx264"
-    else:
-        vf, vcodec = [], "copy"
-    out = OUT_DIR / "dubbed.mp4"
-    cmd = ([ffmpeg, "-y", "-v", "error", "-i", str(vp)] + inputs +
-           ["-filter_complex", ";".join(filters),
-            "-map", "0:v:0", "-map", "[mix]"] + vf +
-           ["-c:v", vcodec, "-preset", "veryfast", "-crf", "20",
-            "-c:a", "aac", "-shortest", str(out)])
-    bar.progress(0.95, "Video ပေါင်းနေတယ်...")
-    subprocess.run(cmd, check=True)
-    for f in workdir.glob("seg*.wav"):
-        f.unlink()
-    bar.progress(1.0, "ပြီးပြီ!")
-    st.success("ရပြီ! 🎉")
-    st.video(str(out))
-    with open(out, "rb") as f:
-        st.download_button("⬇️ Video download ဆွဲမယ်", f,
-                           file_name="dubbed_mm.mp4", mime="video/mp4")
