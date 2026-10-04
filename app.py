@@ -52,8 +52,10 @@ CSS="""<style>
 .stApp p,.stApp label,.stMarkdown{color:#eaf6f6!important}
 div.stButton>button{background:linear-gradient(90deg,#00bfa5,#00acc1);color:#fff;border:none;border-radius:12px;padding:.6rem 2rem;font-size:1.1rem;font-weight:700;box-shadow:0 4px 14px rgba(0,191,165,.35);width:100%}
 div.stButton>button:hover{filter:brightness(1.12)}
-div.stTextArea textarea{background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:12px;border:1px solid rgba(255,255,255,.18)!important}
-div.stSelectbox>div>div{background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:12px}
+div[data-testid="stTextArea"] textarea{background-color:#16323c!important;color:#fff!important;border-radius:12px;border:1px solid rgba(255,255,255,.3)!important}
+div[data-testid="stTextArea"] textarea::placeholder{color:rgba(255,255,255,.45)!important}
+div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{background-color:#16323c!important;border-radius:12px}
+div[data-testid="stSelectbox"] span{color:#fff!important}
 section[data-testid="stFileUploader"]{background:rgba(255,255,255,.06);border-radius:14px;padding:1rem;border:1px dashed rgba(255,255,255,.3)}
 .stAlert{border-radius:12px}
 header[data-testid="stHeader"]{background:rgba(0,0,0,0)}
@@ -96,5 +98,3 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
  for i,(a,b,t) in enumerate(E):
   sg=wd/f"seg{i:02d}.wav"
   if voice=="mms":synth_mms(tts,t,sg)
-  else:synth_edge(t,voice,sg)
-  segs.append((a,prep(sg,b-a)))
