@@ -46,8 +46,23 @@ def synth_edge(text,voice,out):
 def wdur(p):
  w=wave.open(str(p));d=w.getnframes()/w.getframerate();w.close();return d
 st.set_page_config(page_title="Myanmar Story Dubbing",page_icon="🇲🇲")
+CSS="""<style>
+.stApp{background:linear-gradient(135deg,#0f2027 0%,#203a43 55%,#2c5364 100%)}
+.stApp h1{background:linear-gradient(90deg,#7fe7dc,#ffd76e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800}
+.stApp p,.stApp label,.stMarkdown{color:#eaf6f6!important}
+div.stButton>button{background:linear-gradient(90deg,#00bfa5,#00acc1);color:#fff;border:none;border-radius:12px;padding:.6rem 2rem;font-size:1.1rem;font-weight:700;box-shadow:0 4px 14px rgba(0,191,165,.35);width:100%}
+div.stButton>button:hover{filter:brightness(1.12)}
+div.stTextArea textarea{background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:12px;border:1px solid rgba(255,255,255,.18)!important}
+div.stSelectbox>div>div{background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:12px}
+section[data-testid="stFileUploader"]{background:rgba(255,255,255,.06);border-radius:14px;padding:1rem;border:1px dashed rgba(255,255,255,.3)}
+.stAlert{border-radius:12px}
+header[data-testid="stHeader"]{background:rgba(0,0,0,0)}
+footer{visibility:hidden}
+</style>"""
+st.markdown(CSS,unsafe_allow_html=True)
 st.title("🇲🇲 Myanmar Story Dubbing")
-st.write("Video + မြန်မာ SRT စာတန်း → အသံမြန်မာဇာတ်ပြောသံ video")
+st.markdown("🎬 <b>Video</b> + 📝 <b>မြန်မာ SRT</b> → 🔊 <b>အသံမြန်မာဇာတ်ပြောသံ video</b>",unsafe_allow_html=True)
+st.write("")
 st.warning("⚠️ English စာလုံးတွေကို မြန်မာလို အသံထွက်ရေးပေးပါ")
 v=st.file_uploader("Video (.mp4) တင်ပါ",type=["mp4","mov"])
 s=st.text_area("SRT စာတား",height=250,placeholder=PH)
@@ -83,8 +98,3 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
   fnt=font();vf=["-vf",f"subtitles={st_tmp}:fontsdir={FD}:force_style='FontName=Noto Sans Myanmar,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35'"];vc="libx264"
  else:vf=[];vc="copy"
  out=OD/"dubbed.mp4"
- cmd=[ff,"-y","-v","error","-i",str(vp)]+ins+["-filter_complex",";".join(flt),"-map","0:v:0","-map","[mix]"]+vf+["-c:v",vc,"-preset","veryfast","-crf","20","-c:a","aac","-shortest",str(out)]
- bar.progress(0.95,"Video ပေါင်းနေတယ်...");subprocess.run(cmd,check=True)
- for f in wd.glob("seg*.wav"):f.unlink()
- bar.progress(1.0,"ပြီးပြီ!");st.success("ရပြီ! 🎉");st.video(str(out))
- f=open(out,"rb");st.download_button("⬇️ Video download ဆွဲမယ်",f,file_name="dubbed_mm.mp4",mime="video/mp4")
