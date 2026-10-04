@@ -83,18 +83,18 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
   except Exception:
    st.warning("အွန်လိုင်းအသံ မရလို့ MMS offline အသံ သုံးမယ်")
    voice="mms"
- ins=[];flt=[]
+ SR=24000
+ def prep(p,slot):
+  d=wdur(p);q=p.with_suffix(".adj.wav")
+  fa=f"atempo={min(d/slot,1.6):.3f}," if d>slot else ""
+  subprocess.run([ff,"-y","-v","error","-i",str(p),"-filter:a",f"{fa}aresample={SR}","-ac","1",str(q)],check=True,stdin=subprocess.DEVNULL,capture_output=True)
+  return q
+ def rwav(p):
+  w=wave.open(str(p));n=w.getnframes();pcm=np.frombuffer(w.readframes(n),dtype=np.int16).astype(np.float32);w.close();return pcm
  bar=st.progress(0,"အသံထုတ်နေတယ်...")
+ segs=[]
  for i,(a,b,t) in enumerate(E):
   sg=wd/f"seg{i:02d}.wav"
   if voice=="mms":synth_mms(tts,t,sg)
   else:synth_edge(t,voice,sg)
-  d=wdur(sg);slot=b-a;ch=f"[{i+1}:a]"
-  if d>slot:ch+=f"atempo={min(d/slot,1.6):.3f},"
-  ms=int(a*1000);ch+=f"adelay={ms}|{ms}[s{i}]";flt.append(ch);ins+=["-i",str(sg)]
-  bar.progress((i+1)/len(E),f"အပိုင်း {i+1}/{len(E)}...")
- flt.append("".join(f"[s{i}]"for i in range(len(E)))+f"amix=inputs={len(E)}:duration=longest:dropout_transition=0:normalize=0[mix]")
- st_tmp=wd/"subs.srt";st_tmp.write_text(s,encoding="utf-8")
- vfs=[]
- if crop:vfs.append("crop=iw:ih*0.88")
- if burn:vfs.append(f"subtitles={st_tmp}:fontsdir={FD}:force_style='FontName=Noto Sans Myanmar,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35'")
+  segs.append((a,prep(sg,b-a)))
