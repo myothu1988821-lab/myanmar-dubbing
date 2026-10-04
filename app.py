@@ -41,7 +41,7 @@ async def _edge(text,voice,out):
 def synth_edge(text,voice,out):
  mp3=str(out)[:-4]+".mp3"
  asyncio.run(_edge(text,voice,mp3))
- subprocess.run([ff,"-y","-v","error","-i",mp3,"-ar","24000","-ac","1",str(out)],check=True)
+ subprocess.run([ff,"-y","-v","error","-i",mp3,"-ar","24000","-ac","1",str(out)],check=True,stdin=subprocess.DEVNULL)
  Path(mp3).unlink()
 def wdur(p):
  w=wave.open(str(p));d=w.getnframes()/w.getframerate();w.close();return d
