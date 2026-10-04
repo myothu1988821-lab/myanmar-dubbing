@@ -1,1 +1,100 @@
+"""Myanmar Story Dubbing — Streamlit Cloud version (free hosting)."""
+import re
+import subprocess
+import urllib.request
+import wave
+from pathlib import Path
 
+import imageio_ffmpeg
+import numpy as np
+import streamlit as st
+
+MODEL_URL = ("https://huggingface.co/willwade/mms-tts-multilingual-models-onnx"
+             "/resolve/main/mya/")
+MODEL_DIR = Path("model")
+OUT_DIR = Path("outputs")
+OUT_DIR.mkdir(exist_ok=True)
+FONT_URL = ("https://raw.githubusercontent.com/google/fonts/main/"
+            "ofl/notosansmyanmar/NotoSansMyanmar%5Bwdth%2Cwght%5D.ttf")
+FONT_DIR = Path("fonts")
+ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+
+
+@st.cache_resource(show_spinner="Model ဒေါင်းနေတယ် (ပထမအကြိမ်သာ)...")
+def get_tts():
+    import sherpa_onnx
+    MODEL_DIR.mkdir(exist_ok=True)
+    for name in ("model.onnx", "tokens.txt"):
+        dest = MODEL_DIR / name
+        if not dest.exists():
+            urllib.request.urlretrieve(MODEL_URL + name, dest)
+    cfg = sherpa_onnx.OfflineTtsConfig(
+        model=sherpa_onnx.OfflineTtsModelConfig(
+            vits=sherpa_onnx.OfflineTtsVitsModelConfig(
+                model=str(MODEL_DIR / "model.onnx"),
+                tokens=str(MODEL_DIR / "tokens.txt"), lexicon="",
+                noise_scale=0.667, noise_scale_w=0.8, length_scale=1.0),
+            num_threads=2, debug=False, provider="cpu"))
+    return sherpa_onnx.OfflineTts(cfg)
+
+
+def ensure_font():
+    FONT_DIR.mkdir(exist_ok=True)
+    dest = FONT_DIR / "NotoSansMyanmar.ttf"
+    if not dest.exists():
+        try:
+            urllib.request.urlretrieve(FONT_URL, dest)
+        except Exception:
+            raise RuntimeError(
+                "Font download မအောင်မြင်ပါ — 'burn subtitles' အမှန်ခြစ်ဖြုတ်ပြီး "
+                "ပြန်စမ်းကြည့်ပါ / Font download failed — uncheck 'burn subtitles'.")
+    return dest
+
+
+def parse_srt(text):
+    entries = []
+    for block in text.strip().split("\n\n"):
+        lines = block.strip().splitlines()
+        if len(lines) < 3:
+            continue
+        m = re.match(
+            r"(\d+):(\d+):(\d+),(\d+)\s*-->\s*(\d+):(\d+):(\d+),(\d+)", lines[1])
+        if not m:
+            continue
+        g = list(map(int, m.groups()))
+        start = g[0]*3600 + g[1]*60 + g[2] + g[3]/1000
+        end = g[4]*3600 + g[5]*60 + g[6] + g[7]/1000
+        seg = " ".join(lines[2:]).strip()
+        if seg:
+            entries.append((start, end, seg))
+    return entries
+
+
+def video_duration(path):
+    p = subprocess.run([ffmpeg, "-i", str(path)],
+                       capture_output=True, text=True)
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", p.stderr)
+    h, mi, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
+    return h*3600 + mi*60 + s
+
+
+def synth_wav(tts, text, out_path):
+    audio = tts.generate(text, sid=0, speed=1.0)
+    pcm = (np.array(audio.samples) * 32767).astype(np.int16)
+    with wave.open(str(out_path), "w") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(audio.sample_rate)
+        w.writeframes(pcm.tobytes())
+
+
+def wav_duration(path):
+    with wave.open(str(path)) as w:
+        return w.getnframes() / w.getframerate()
+
+
+SRT_EXAMPLE = """1
+00:00:00,000 --> 00:00:04,000
+ရွှေဖရုံသီး စားဖိုမှူးက ခရမ်းချဉ်သီးလေးကို အမှိုက်ပုံးထဲ လွှင့်ပစ်လိုက်တယ်။
+
+2
