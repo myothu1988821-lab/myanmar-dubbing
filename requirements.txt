@@ -1,0 +1,4 @@
+streamlit
+sherpa-onnx
+numpy
+imageio-ffmpeg
