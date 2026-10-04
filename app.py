@@ -68,6 +68,7 @@ v=st.file_uploader("Video (.mp4) တင်ပါ",type=["mp4","mov"])
 s=st.text_area("SRT စာတား",height=250,placeholder=PH)
 vname=st.selectbox("အသံ ရွေးပါ",list(VOICES.keys()))
 burn=st.checkbox("စာတန်းပါ video ထဲမှာ ကပ်မယ် (burn subtitles)")
+crop=st.checkbox("🔇 မူရင်း Eng/China စာတန်း ဖျောက်မယ် (အောက်ခြေ 12% ဖြတ်မယ်)")
 if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
  if not v:st.error("Video file တင်ပေးပါ။");st.stop()
  if not s.strip():st.error("SRT စာတား ထည့်ပေးပါ။");st.stop()
@@ -94,7 +95,6 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
   bar.progress((i+1)/len(E),f"အပိုင်း {i+1}/{len(E)}...")
  flt.append("".join(f"[s{i}]"for i in range(len(E)))+f"amix=inputs={len(E)}:duration=longest:dropout_transition=0:normalize=0[mix]")
  st_tmp=wd/"subs.srt";st_tmp.write_text(s,encoding="utf-8")
- if burn:
-  fnt=font();vf=["-vf",f"subtitles={st_tmp}:fontsdir={FD}:force_style='FontName=Noto Sans Myanmar,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35'"];vc="libx264"
- else:vf=[];vc="copy"
- out=OD/"dubbed.mp4"
+ vfs=[]
+ if crop:vfs.append("crop=iw:ih*0.88")
+ if burn:vfs.append(f"subtitles={st_tmp}:fontsdir={FD}:force_style='FontName=Noto Sans Myanmar,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35'")
