@@ -37,7 +37,7 @@ def synth_mms(tts,text,out):
  w=wave.open(str(out),"w");w.setnchannels(1);w.setsampwidth(2);w.setframerate(a.sample_rate);w.writeframes(p.tobytes());w.close()
 async def _edge(text,voice,out):
  import edge_tts
- await edge_tts.Communicate(text,voice).save(out)
+ await asyncio.wait_for(edge_tts.Communicate(text,voice).save(out),timeout=90)
 def synth_edge(text,voice,out):
  mp3=str(out)[:-4]+".mp3"
  asyncio.run(_edge(text,voice,mp3))
@@ -77,14 +77,17 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
  E=parse_srt(s)
  if not E:st.error("SRT format မှားနေတယ်");st.stop()
  vp=OD/"input.mp4";vp.write_bytes(v.getvalue())
- tts=get_tts();voice=VOICES[vname]
+ voice=VOICES[vname];tts=None
  wd=OD/"segs";wd.mkdir(exist_ok=True)
+ bar=st.progress(0,"အသံစစ်ဆေးနေတယ်...")
  if voice!="mms":
   try:
    synth_edge("စမ်းသပ်နေပါတယ်",voice,wd/"_t.wav");(wd/"_t.wav").unlink()
   except Exception:
    st.warning("အွန်လိုင်းအသံ မရလို့ MMS offline အသံ သုံးမယ်")
    voice="mms"
+ if voice=="mms":
+  tts=get_tts()
  SR=24000
  def prep(p,slot):
   d=wdur(p);q=p.with_suffix(".adj.wav")
@@ -95,6 +98,3 @@ if st.button("🎙️ Dub လုပ်မယ်",type="primary"):
   w=wave.open(str(p));n=w.getnframes();pcm=np.frombuffer(w.readframes(n),dtype=np.int16).astype(np.float32);w.close();return pcm
  bar=st.progress(0,"အသံထုတ်နေတယ်...")
  segs=[]
- for i,(a,b,t) in enumerate(E):
-  sg=wd/f"seg{i:02d}.wav"
-  if voice=="mms":synth_mms(tts,t,sg)
