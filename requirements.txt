@@ -2,3 +2,4 @@ streamlit
 sherpa-onnx
 numpy
 imageio-ffmpeg
+edge-tts
